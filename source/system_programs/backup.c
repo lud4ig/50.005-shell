@@ -11,13 +11,14 @@ int main(int argc, char **argv) {
 
     // 1. Capture PROJECT_DIR state
     char project_dir[PATH_MAX]; // Buffer to hold the current working directory
-    if (getcwd(project_dir, sizeof(project_dir)) == NULL) {
+    if (getcwd(project_dir, sizeof(project_dir)) == NULL) { // Get the current working directory and check for errors
         perror("getcwd() error");
         return 1;
     }
 
     // 2. Read target environment context 
-    char *backup_target = getenv("BACKUP_DIR"); // j
+    char *backup_target = getenv("BACKUP_DIR"); // reads active value of BACKUP_DIR environment variable
+    // checks shell for memory space 
     if (backup_target == NULL) {
         fprintf(stderr, "BACKUP_DIR environment variable is not set.\n");
         return 1;
@@ -25,26 +26,27 @@ int main(int argc, char **argv) {
 
     // 3. File metadata verification
     struct stat path_stat;
-    if (stat(backup_target, &path_stat) != 0) {
+    if (stat(backup_target, &path_stat) != 0) { // Check if the target path exists and retrieve its metadata
         perror("Error accessing BACKUP_DIR target");
         return 1;
     }
-    int is_directory = S_ISDIR(path_stat.st_mode);
+    int is_directory = S_ISDIR(path_stat.st_mode); // unpacks the file type information from the metadata to determine if the target is a directory or a regular file
 
     // 4. Enforce archive container existence
     char archive_dir[PATH_MAX];
+    // Construct the path for the archive directory within the project directory
     snprintf(archive_dir, sizeof(archive_dir), "%s/archive", project_dir);
 
     struct stat archive_stat;
-    if (stat(archive_dir, &archive_stat) != 0) {
-        if (mkdir(archive_dir, 0755) != 0) {
+    if (stat(archive_dir, &archive_stat) != 0) { // check if the archive directory exists
+        if (mkdir(archive_dir, 0755) != 0) { // Owner can read/write/execute, group and others can read/execute
             perror("Failed to create archive directory");
             return 1;
         }
     }
 
     // 5. Generate deterministic timestamp tokens
-    time_t now = time(NULL);
+    time_t now = time(NULL); // no. of seconds since the Unix epoch, ensures traceabiity and uniqueness of backup files
     struct tm *t = localtime(&now);
     char timestamp[64];
     strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", t);
